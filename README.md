@@ -4,16 +4,21 @@ Local environment for Famexus. It wires the five app repos together with docker-
 
 ## What runs
 
+Open the app at **http://localhost**. Caddy is the front door: `/` goes to the React app, `/api` and `/sanctum` to the gateway.
+
 | Container | Port on your machine | Notes |
 |---|---|---|
-| `web` | http://localhost:5173 | React app (Vite dev server), proxies `/api` and `/sanctum` to the gateway |
-| `gateway` | http://localhost:8000 | Login, users, families, ACL; the only backend the app talks to |
+| `caddy` | http://localhost | Front door: one origin for app + API; HTTPS on a VPS later |
+| `web` | 5173 (debug) | React app (Vite dev server) |
+| `gateway` | 8000 (debug) | Login, users, families, ACL; the only backend the app talks to |
 | `todo`, `calendar`, `wallit` | not published | Reachable only from the gateway on the Docker network |
-| `mysql` | 3306 | MySQL 8.4, one database + one user per service |
+| `calendar-worker`, `wallit-worker` | | Queue workers (Google sync, CSV import) |
+| `calendar-scheduler`, `wallit-scheduler` | | Run scheduled jobs (calendar sync, daily net worth snapshot) |
+| `mysql` | 3306 (debug) | MySQL 8.4, one database + one user per service |
 | `redis` | not published | Queues and cache |
 | `mailpit` | http://localhost:8025 | Catches outgoing email (password resets) |
-| `caddy` | http://localhost | Optional, `--profile proxy`: one origin for app + API |
-| `calendar-worker`, `wallit-worker` | | Optional, `--profile workers`: queue workers for sync and CSV import |
+
+The PHP apps run on FrankenPHP (each app's own `Dockerfile`). Workers and schedulers use the same image and start once their service is healthy. The "debug" ports let you hit the Vite server, the gateway or MySQL directly with your own tools.
 
 ## First run
 
@@ -39,12 +44,11 @@ Needs Docker Desktop and `openssl`. You do not need PHP, Composer or Node on you
 ## Day to day
 
 ```sh
-docker compose up -d                       # start
-docker compose --profile workers up -d     # start with queue workers
+docker compose up -d                       # start everything
 docker compose logs -f gateway             # follow one service
 docker compose exec gateway php artisan migrate
 docker compose exec wallit composer test
-./scripts/stop.sh                          # stop everything, incl. workers + proxy (data stays in volumes)
+./scripts/stop.sh                          # stop everything (data stays in volumes)
 ./scripts/stop.sh --wipe-data              # stop and delete MySQL + vendor volumes (asks to confirm)
 ```
 
@@ -52,7 +56,7 @@ docker compose exec wallit composer test
 
 - `docker-compose.yml`: all containers, one internal network
 - `mysql/init/01-databases.sh`: creates `famexus_gateway`, `famexus_todo`, `famexus_calendar`, `wallit` and a user for each (runs only on an empty volume)
-- `caddy/Caddyfile`: optional reverse proxy; becomes the HTTPS front door on a VPS later
+- `caddy/Caddyfile`: the front door; becomes the HTTPS front door on a VPS later
 - `.env.example`: host ports and database passwords
 - `scripts/clone-all.sh`, `scripts/setup.sh`, `scripts/stop.sh`, `scripts/generate-jwt-keys.sh`
 

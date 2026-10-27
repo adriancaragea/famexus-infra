@@ -14,11 +14,29 @@ x-laravel: &laravel
     redis:
       condition: service_started
   # Source is bind-mounted for live editing; vendor/ lives in a named volume so
-  # the host checkout does not need PHP or Composer.
-  command: sh -c "composer install --no-interaction && php artisan serve --host=0.0.0.0 --port=8000"
+  # the host checkout does not need PHP or Composer. FrankenPHP serves public/;
+  # without worker mode every request picks up code changes immediately.
+  command: sh -c "composer install --no-interaction && frankenphp php-server --listen :8000 --root public/"
+  healthcheck:
+    test: ["CMD", "php", "-r", "exit(@file_get_contents('http://localhost:8000/up') === false ? 1 : 0);"]
+    interval: 5s
+    timeout: 5s
+    # The first start runs composer install into an empty volume, which takes a while.
+    retries: 120
+    start_period: 10s
+  networks: [internal]
+
+# Queue workers and schedulers reuse a service's image and vendor volume. They
+# start once that service is healthy, so only one container runs composer install.
+x-background: &background
+  restart: unless-stopped
+  healthcheck:
+    disable: true
   networks: [internal]
 
 services:
+  # web (5173), gateway (8000) and mysql (3306) are also published directly
+  # for debugging; use http://localhost for the app itself.
   web:
     build: ../famexus-web
     restart: unless-stopped
@@ -57,13 +75,26 @@ services:
       - calendar_vendor:/var/www/html/vendor
 
   calendar-worker:
-    <<: *laravel
+    <<: *background
     build: ../famexus-calendar
-    command: sh -c "composer install --no-interaction && php artisan queue:work --tries=3"
+    command: php artisan queue:work --tries=3
+    depends_on:
+      calendar:
+        condition: service_healthy
     volumes:
       - ../famexus-calendar:/var/www/html
       - calendar_vendor:/var/www/html/vendor
-    profiles: [workers]
+
+  calendar-scheduler:
+    <<: *background
+    build: ../famexus-calendar
+    command: php artisan schedule:work
+    depends_on:
+      calendar:
+        condition: service_healthy
+    volumes:
+      - ../famexus-calendar:/var/www/html
+      - calendar_vendor:/var/www/html/vendor
 
   wallit:
     <<: *laravel
@@ -73,13 +104,26 @@ services:
       - wallit_vendor:/var/www/html/vendor
 
   wallit-worker:
-    <<: *laravel
+    <<: *background
     build: ../wallit
-    command: sh -c "composer install --no-interaction && php artisan queue:work --tries=3"
+    command: php artisan queue:work --tries=3
+    depends_on:
+      wallit:
+        condition: service_healthy
     volumes:
       - ../wallit:/var/www/html
       - wallit_vendor:/var/www/html/vendor
-    profiles: [workers]
+
+  wallit-scheduler:
+    <<: *background
+    build: ../wallit
+    command: php artisan schedule:work
+    depends_on:
+      wallit:
+        condition: service_healthy
+    volumes:
+      - ../wallit:/var/www/html
+      - wallit_vendor:/var/www/html/vendor
 
   mysql:
     image: mysql:8.4
@@ -114,7 +158,7 @@ services:
       - "${MAILPIT_UI_PORT:-8025}:8025"
     networks: [internal]
 
-  # Optional single entry point on http://localhost (docker compose --profile proxy up).
+  # The front door: http://localhost serves the app and the API from one origin.
   # Later this becomes the HTTPS front door on a VPS.
   caddy:
     image: caddy:2-alpine
@@ -124,7 +168,6 @@ services:
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
     depends_on: [web, gateway]
-    profiles: [proxy]
     networks: [internal]
 
 networks:

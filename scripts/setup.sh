@@ -27,6 +27,6 @@ done
 
 echo
 echo "Famexus is up:"
-echo "  App      http://localhost:5173"
-echo "  Gateway  http://localhost:8000/api/v1/ping"
+echo "  App      http://localhost"
+echo "  Hello    http://localhost/api/v1/hello"
 echo "  Mailpit  http://localhost:8025"

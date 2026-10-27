@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Stops the whole stack, including the optional workers and proxy profiles.
+# Stops the whole stack.
 # Data (MySQL, vendor/, node_modules) stays in the named volumes.
 #
 # Usage: ./scripts/stop.sh             stop and remove containers, keep data
@@ -20,8 +20,7 @@ done
 
 cd "$(dirname "$0")/.."
 
-# down only touches services in active profiles, so name them all.
-compose=(docker compose --profile workers --profile proxy)
+compose=(docker compose)
 
 if ! $wipe; then
   "${compose[@]}" down --remove-orphans

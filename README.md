@@ -44,8 +44,8 @@ docker compose --profile workers up -d     # start with queue workers
 docker compose logs -f gateway             # follow one service
 docker compose exec gateway php artisan migrate
 docker compose exec wallit composer test
-docker compose down                        # stop (data stays in volumes)
-docker compose down -v                     # stop and wipe MySQL + vendor volumes
+./scripts/stop.sh                          # stop everything, incl. workers + proxy (data stays in volumes)
+./scripts/stop.sh --wipe-data              # stop and delete MySQL + vendor volumes (asks to confirm)
 ```
 
 ## Files
@@ -54,7 +54,7 @@ docker compose down -v                     # stop and wipe MySQL + vendor volume
 - `mysql/init/01-databases.sh`: creates `famexus_gateway`, `famexus_todo`, `famexus_calendar`, `wallit` and a user for each (runs only on an empty volume)
 - `caddy/Caddyfile`: optional reverse proxy; becomes the HTTPS front door on a VPS later
 - `.env.example`: host ports and database passwords
-- `scripts/clone-all.sh`, `scripts/setup.sh`, `scripts/generate-jwt-keys.sh`
+- `scripts/clone-all.sh`, `scripts/setup.sh`, `scripts/stop.sh`, `scripts/generate-jwt-keys.sh`
 
 ## JWT between gateway and services
 

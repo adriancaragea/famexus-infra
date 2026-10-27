@@ -1,0 +1,139 @@
+# Famexus local environment. Expects all repos cloned side by side:
+#   famexus/
+#     famexus-infra/   (this repo)
+#     famexus-web/  famexus-gateway/  famexus-todo/  famexus-calendar/  wallit/
+# Run ./scripts/clone-all.sh to get them, then ./scripts/setup.sh.
+
+name: famexus
+
+x-laravel: &laravel
+  restart: unless-stopped
+  depends_on:
+    mysql:
+      condition: service_healthy
+    redis:
+      condition: service_started
+  # Source is bind-mounted for live editing; vendor/ lives in a named volume so
+  # the host checkout does not need PHP or Composer.
+  command: sh -c "composer install --no-interaction && php artisan serve --host=0.0.0.0 --port=8000"
+  networks: [internal]
+
+services:
+  web:
+    build: ../famexus-web
+    restart: unless-stopped
+    environment:
+      GATEWAY_URL: http://gateway:8000
+    ports:
+      - "${WEB_PORT:-5173}:5173"
+    volumes:
+      - ../famexus-web:/app
+      - web_node_modules:/app/node_modules
+    depends_on: [gateway]
+    networks: [internal]
+
+  gateway:
+    <<: *laravel
+    build: ../famexus-gateway
+    ports:
+      - "${GATEWAY_PORT:-8000}:8000"
+    volumes:
+      - ../famexus-gateway:/var/www/html
+      - gateway_vendor:/var/www/html/vendor
+
+  # The three services are not published to the host: only the gateway reaches them.
+  todo:
+    <<: *laravel
+    build: ../famexus-todo
+    volumes:
+      - ../famexus-todo:/var/www/html
+      - todo_vendor:/var/www/html/vendor
+
+  calendar:
+    <<: *laravel
+    build: ../famexus-calendar
+    volumes:
+      - ../famexus-calendar:/var/www/html
+      - calendar_vendor:/var/www/html/vendor
+
+  calendar-worker:
+    <<: *laravel
+    build: ../famexus-calendar
+    command: sh -c "composer install --no-interaction && php artisan queue:work --tries=3"
+    volumes:
+      - ../famexus-calendar:/var/www/html
+      - calendar_vendor:/var/www/html/vendor
+    profiles: [workers]
+
+  wallit:
+    <<: *laravel
+    build: ../wallit
+    volumes:
+      - ../wallit:/var/www/html
+      - wallit_vendor:/var/www/html/vendor
+
+  wallit-worker:
+    <<: *laravel
+    build: ../wallit
+    command: sh -c "composer install --no-interaction && php artisan queue:work --tries=3"
+    volumes:
+      - ../wallit:/var/www/html
+      - wallit_vendor:/var/www/html/vendor
+    profiles: [workers]
+
+  mysql:
+    image: mysql:8.4
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      GATEWAY_DB_PASSWORD: ${GATEWAY_DB_PASSWORD:-secret}
+      TODO_DB_PASSWORD: ${TODO_DB_PASSWORD:-secret}
+      CALENDAR_DB_PASSWORD: ${CALENDAR_DB_PASSWORD:-secret}
+      WALLIT_DB_PASSWORD: ${WALLIT_DB_PASSWORD:-secret}
+    ports:
+      - "${MYSQL_PORT:-3306}:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p${MYSQL_ROOT_PASSWORD:-root}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+    networks: [internal]
+
+  redis:
+    image: redis:8-alpine
+    restart: unless-stopped
+    networks: [internal]
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: unless-stopped
+    ports:
+      - "${MAILPIT_UI_PORT:-8025}:8025"
+    networks: [internal]
+
+  # Optional single entry point on http://localhost (docker compose --profile proxy up).
+  # Later this becomes the HTTPS front door on a VPS.
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    ports:
+      - "${PROXY_PORT:-80}:80"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on: [web, gateway]
+    profiles: [proxy]
+    networks: [internal]
+
+networks:
+  internal:
+
+volumes:
+  mysql_data:
+  web_node_modules:
+  gateway_vendor:
+  todo_vendor:
+  calendar_vendor:
+  wallit_vendor:

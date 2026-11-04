@@ -41,6 +41,17 @@ famexus/
 
 Needs Docker Desktop and `openssl`. You do not need PHP, Composer or Node on your machine; dependencies are installed inside the containers.
 
+### Windows (WSL2)
+
+The stack runs the same on Windows through Docker Desktop with the WSL2 backend.
+
+1. Install WSL2 with Ubuntu (`wsl --install` in an admin PowerShell), then Docker Desktop with "Use the WSL 2 based engine" and WSL integration for Ubuntu turned on.
+2. Open an **Ubuntu** terminal and do everything from there: the scripts are bash, and `git` and `openssl` come with Ubuntu (`sudo apt install git openssl` if missing).
+3. Clone into the Linux filesystem, e.g. `~/projects/famexus`, **not** under `/mnt/c/...`. Code on the Windows drive makes PHP and Vite very slow, and live reload misses file changes.
+4. Run `./scripts/clone-all.sh` and `./scripts/setup.sh` as above. `clone-all.sh` clones over SSH, so add an SSH key for GitHub inside Ubuntu first (a key on the Windows side isn't visible there). The app is at http://localhost in your Windows browser.
+
+All repos force LF line endings (`.gitattributes`), so a clone made with Git for Windows still works. If port 80 is taken on Windows (IIS, for example), set `PROXY_PORT` in `.env`, add `localhost:PORT` to `SANCTUM_STATEFUL_DOMAINS` in `famexus-gateway/.env`, and open http://localhost:PORT instead.
+
 ## Day to day
 
 ```sh

@@ -61,6 +61,7 @@ docker compose exec gateway php artisan migrate
 docker compose exec wallit composer test
 ./scripts/stop.sh                          # stop everything (data stays in volumes)
 ./scripts/stop.sh --wipe-data              # stop and delete MySQL + vendor volumes (asks to confirm)
+./scripts/build.sh                         # after a code change: install dependencies, migrate, build the React app
 ./scripts/pull-all.sh                      # pull every repo's current branch; skips repos with uncommitted changes
 ```
 
@@ -70,7 +71,7 @@ docker compose exec wallit composer test
 - `mysql/init/01-databases.sh`: creates `famexus_gateway`, `famexus_todo`, `famexus_calendar`, `wallit` and a user for each (runs only on an empty volume)
 - `caddy/Caddyfile`: the front door; becomes the HTTPS front door on a VPS later
 - `.env.example`: host ports and database passwords
-- `scripts/clone-all.sh`, `scripts/pull-all.sh`, `scripts/setup.sh`, `scripts/stop.sh`, `scripts/generate-jwt-keys.sh`
+- `scripts/clone-all.sh`, `scripts/build.sh`, `scripts/pull-all.sh`, `scripts/setup.sh`, `scripts/stop.sh`, `scripts/generate-jwt-keys.sh`
 
 ## JWT between gateway and services
 

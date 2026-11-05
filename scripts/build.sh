@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Brings the running stack up to date after a code change: rebuilds images,
-# installs new dependencies, recreates what changed, runs migrations, restarts
-# queue workers and reloads Caddy. Keeps all data. Safe to run at any time.
+# Updates the app after a code change, without rebuilding images: installs
+# Composer and npm dependencies, runs migrations, restarts queue workers and
+# builds the React app. Stops at the first error. Keeps all data.
 #
 # Usage: ./scripts/build.sh
 set -euo pipefail
@@ -20,25 +20,27 @@ if [ ! -f .env ] || [ ! -f ../famexus-gateway/.env ]; then
   exit 1
 fi
 
-docker compose build
-
-# node_modules lives in a named volume, so a rebuilt image alone doesn't update it.
-docker compose run --rm --no-deps -T web sh -c 'npm ls >/dev/null 2>&1 || npm ci --no-audit --no-fund'
-
-# The PHP containers run composer install as they start; --wait holds until they're healthy.
-if ! docker compose up -d --wait --wait-timeout 600; then
+# Everything runs inside the containers: vendor/ and node_modules live in their
+# volumes and the database is only reachable there. This starts a stopped stack
+# and does nothing to a running one.
+if ! docker compose --progress quiet up -d --wait --wait-timeout 600; then
   echo "Some containers didn't start; check docker compose ps and docker compose logs." >&2
   exit 1
 fi
 
 for svc in gateway todo calendar wallit; do
-  echo "Migrating $svc..."
+  echo "== $svc"
+  docker compose exec -T "$svc" composer install --no-interaction --quiet
   docker compose exec -T "$svc" php artisan migrate --force
 done
 
-# Workers keep the old .env in memory until restarted, and Caddy's config is a bind mount.
-docker compose restart calendar-worker wallit-worker
-docker compose exec -T caddy caddy reload --config /etc/caddy/Caddyfile
+for svc in calendar wallit; do
+  docker compose exec -T "$svc" php artisan queue:restart
+done
+
+echo "== web"
+docker compose exec -T web sh -c 'npm ls >/dev/null 2>&1 || npm ci --no-audit --no-fund'
+docker compose exec -T web npm run build
 
 echo
 echo "Famexus is up to date: http://localhost"

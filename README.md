@@ -61,7 +61,7 @@ docker compose exec gateway php artisan migrate
 docker compose exec wallit composer test
 ./scripts/stop.sh                          # stop everything (data stays in volumes)
 ./scripts/stop.sh --wipe-data              # stop and delete MySQL + vendor volumes (asks to confirm)
-./scripts/build.sh                         # after a code change: rebuild, install dependencies, migrate, restart
+./scripts/build.sh                         # after a code change: install dependencies, migrate, build the React app
 ./scripts/pull-all.sh                      # pull every repo's current branch; skips repos with uncommitted changes
 ```
 

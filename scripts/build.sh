@@ -23,7 +23,7 @@ fi
 docker compose build
 
 # node_modules lives in a named volume, so a rebuilt image alone doesn't update it.
-docker compose run --rm --no-deps -T web sh -c 'npm ls >/dev/null 2>&1 || npm install --no-audit --no-fund'
+docker compose run --rm --no-deps -T web sh -c 'npm ls >/dev/null 2>&1 || npm ci --no-audit --no-fund'
 
 # The PHP containers run composer install as they start; --wait holds until they're healthy.
 if ! docker compose up -d --wait --wait-timeout 600; then

@@ -6,7 +6,7 @@ cd "$(dirname "$0")/../.."
 [ -f famexus-infra/.env ] && set -a && . famexus-infra/.env && set +a
 owner="${1:-${GITHUB_OWNER:-adriancaragea}}"
 
-for repo in famexus-web famexus-gateway famexus-todo famexus-calendar wallit; do
+for repo in famexus-web famexus-gateway famexus-todo famexus-calendar wallit famexus-docs; do
   if [ -d "$repo/.git" ]; then
     echo "✓ $repo already cloned"
   else

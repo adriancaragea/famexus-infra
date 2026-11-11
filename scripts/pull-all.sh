@@ -27,7 +27,7 @@ skip() {
 }
 
 # famexus-infra goes last: pulling it can rewrite this script while bash is still reading it.
-for repo in famexus-web famexus-gateway famexus-todo famexus-calendar wallit famexus-infra; do
+for repo in famexus-web famexus-gateway famexus-todo famexus-calendar wallit famexus-docs famexus-infra; do
   if [ ! -d "$repo/.git" ]; then
     skip "$repo" "not cloned (run ./scripts/clone-all.sh)"
     continue

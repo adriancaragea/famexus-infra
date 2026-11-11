@@ -1,7 +1,7 @@
 # Famexus local environment. Expects all repos cloned side by side:
 #   famexus/
 #     famexus-infra/   (this repo)
-#     famexus-web/  famexus-gateway/  famexus-todo/  famexus-calendar/  wallit/
+#     famexus-web/  famexus-gateway/  famexus-todo/  famexus-calendar/  wallit/  famexus-docs/
 # Run ./scripts/clone-all.sh to get them, then ./scripts/setup.sh.
 
 name: famexus
@@ -156,6 +156,17 @@ services:
     restart: unless-stopped
     ports:
       - "${MAILPIT_UI_PORT:-8025}:8025"
+    networks: [internal]
+
+  # The documentation site (famexus-docs) at http://localhost:8100, with live
+  # reload: the repo is mounted, so a saved page shows up straight away.
+  docs:
+    build: ../famexus-docs
+    restart: unless-stopped
+    ports:
+      - "${DOCS_PORT:-8100}:8000"
+    volumes:
+      - ../famexus-docs:/docs
     networks: [internal]
 
   # The front door: http://localhost serves the app and the API from one origin.

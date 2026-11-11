@@ -1,6 +1,6 @@
 # famexus-infra
 
-Local environment for Famexus. It wires the five app repos together with docker-compose; each app keeps its own `Dockerfile` and can build and test on its own. Deployment config will live here later.
+Local environment for Famexus. It wires the five app repos and the docs site together with docker-compose; each app keeps its own `Dockerfile` and can build and test on its own. Deployment config will live here later.
 
 ## What runs
 
@@ -17,6 +17,7 @@ Open the app at **http://localhost**. Caddy is the front door: `/` goes to the R
 | `mysql` | 3306 (debug) | MySQL 8.4, one database + one user per service |
 | `redis` | not published | Queues and cache |
 | `mailpit` | http://localhost:8025 | Catches outgoing email (password resets) |
+| `docs` | http://localhost:8100 | The documentation site from [famexus-docs](../famexus-docs), reloads as you edit |
 
 The PHP apps run on FrankenPHP (each app's own `Dockerfile`). Workers and schedulers use the same image and start once their service is healthy. The "debug" ports let you hit the Vite server, the gateway or MySQL directly with your own tools.
 
@@ -32,6 +33,7 @@ famexus/
   famexus-todo/
   famexus-calendar/
   wallit/
+  famexus-docs/
 ```
 
 ```sh
